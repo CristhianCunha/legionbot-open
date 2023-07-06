@@ -109,6 +109,9 @@ Acesse o site oficial do [ffmpeg](https://ffmpeg.org/download.html) e faça o do
 
 O bot utiliza o liquify do ImageMagick pra fazer as funções _distort_ e _JPEG_.
 
+Acesse o site oficial do [ImageMagick](https://imagemagick.org/script/download.php), faça o download e instale. Estou usando a versão `ImageMagick-7.1.1-12-Q16-HDRI-x64-dll.exe`, mas qualquer uma que intale o executável `mogrify.exe` serve.
+Anote a pasta onde foi instalado, pois vai precisar configurar o mesmo no `configs.js`.
+
 ### python3 & rembg
 
 O bot utiliza a ferramenta **rembg** para remover fundo das imagens, que foi escrita em _python_.
@@ -118,7 +121,7 @@ O bot utiliza a ferramenta **rembg** para remover fundo das imagens, que foi esc
 2. Em um termimal, execute:
 
 ```sh
-    pip install rembg[cli]
+	pip install rembg[cli]
 ```
 
 Você também pode usar o poder da placa de vídeo do servidor, se for possível. Visite o repositório oficial do [rembg](https://github.com/danielgatis/rembg) para mais informações.
@@ -138,6 +141,7 @@ O legionbot usa os seguintes pacotes (nesta versão, a final tem bem mais):
 - [winston](https://github.com/winstonjs/winston): Gerenciador de logs
 - [winston-daily-rotate-file](https://github.com/winstonjs/winston-daily-rotate-file): Extensão do gerenciador de logs para orgaização
 - [mime-types](https://github.com/jshttp/mime-types): Identificar extensão e tipo de arquivos
+- [@livecord/notify](https://www.npmjs.com/package/@livecord/notify): Monitoramento de Streams na twitch e vídeos do youtube
 
 1. Navegue até o diretório onde estão os arquivos do bot e instale os pacotes necessários utilizando:
 

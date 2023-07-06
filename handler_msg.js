@@ -1,4 +1,5 @@
 const { loggerInfo, loggerWarn } = require("./logger");
+const { dispatchMessages, reagirMsg, removerPessoasGrupo, adicionarPessoasGrupo, tornarPessoasAdmin, setWrapperClient, deletaMsgs, isUserAdminInChat } = require("./wrappers-bot");
 const { filtrarMsg, ignorarMsg } = require("./filtros");
 const { consultarIDSM } = require("./idsm");
 const { stickersHandler, stickersBgHandler } =	require("./stickers");
@@ -41,6 +42,7 @@ const handlers = [
 		endStrings: [], // Comando precisa TERMINAR com alguma dessas strings
 		handler: false, // Função que será chamada para processar os dados
 		needsMedia: false, // Precisa vir mídia NA MENSAGEM que tem o comando
+		needsQuote: false, // Precisa ter alguma mensagem marcada
 		apenasTextoCompleto: false, // Se true, a mensagem precisa ser EXATAMENTE igual ao comando, se não, precisa apenas conter
 		apenasPalavaInteira: true, // Se true, apenas considera palavra inteira, por exemplo, se true, o comando !s não ativaria com !super
 		apenasInicio: true, // Se true, só considera que o comando estiver no começo da mensagem
@@ -60,6 +62,49 @@ const handlers = [
 		superAdminOnly: false // Comando é apenas para SUPER administradores? (definidos no configs.js)
 	},
 
+	// Administração
+	{
+		startStrings: ["!gerenciar-","!g-"],
+		containStrings: ["info", "grupo-","cmd-","filtros-","roleta-","twitch-","youtube-"],
+		endStrings: [],
+		handler: gerenciarHandler,
+		needsMedia: false,
+		needsQuote: false,
+		apenasTextoCompleto: false,
+		apenasPalavaInteira: false,
+		apenasInicio: true,
+		adminOnly: true,
+		superAdminOnly: false
+	},
+	{
+		startStrings: ["!"],
+		containStrings: ["cadastrar"],
+		endStrings: [],
+		handler: cadastrarHandler,
+		needsMedia: false,
+		needsQuote: false,
+		apenasTextoCompleto: false,
+		apenasPalavaInteira: true,
+		apenasInicio: true,
+		adminOnly: true,
+		superAdminOnly: false
+	},
+
+	// Atenção
+	{
+		startStrings: ["!"],
+		containStrings: ["atencao","atenção"],
+		endStrings: [],
+		handler: chamarAtencaoHandler,
+		needsMedia: false,
+		needsQuote: false,
+		apenasTextoCompleto: false,
+		apenasPalavaInteira: true,
+		apenasInicio: true,
+		adminOnly: true,
+		superAdminOnly: false
+	},
+
 	// Figurinhas
 	{
 		startStrings: ["!"],
@@ -67,6 +112,7 @@ const handlers = [
 		endStrings: ["bg"],
 		handler: stickersBgHandler,
 		needsMedia: false,
+		needsQuote: false,
 		apenasTextoCompleto: true,
 		apenasPalavaInteira: true,
 		apenasInicio: true,
@@ -79,6 +125,7 @@ const handlers = [
 		endStrings: [],
 		handler: stickersHandler,
 		needsMedia: false,
+		needsQuote: false,
 		apenasTextoCompleto: true,
 		apenasPalavaInteira: true,
 		apenasInicio: true,
@@ -91,6 +138,7 @@ const handlers = [
 		endStrings: [],
 		handler: stickersBgHandler,
 		needsMedia: true,
+		needsQuote: false,
 		apenasTextoCompleto: true,
 		apenasPalavaInteira: true,
 		apenasInicio: true,
@@ -103,6 +151,7 @@ const handlers = [
 		endStrings: [],
 		handler: stickersHandler,
 		needsMedia: true,
+		needsQuote: false,
 		apenasTextoCompleto: true,
 		apenasPalavaInteira: true,
 		apenasInicio: true,
@@ -117,6 +166,7 @@ const handlers = [
 		endStrings: [],
 		handler: removebgHandler,
 		needsMedia: false,
+		needsQuote: false,
 		apenasTextoCompleto: false,
 		apenasPalavaInteira: true,
 		apenasInicio: true,
@@ -129,6 +179,7 @@ const handlers = [
 		endStrings: [],
 		handler: removebgHandler,
 		needsMedia: true,
+		needsQuote: false,
 		apenasTextoCompleto: false,
 		apenasPalavaInteira: true,
 		apenasInicio: true,
@@ -169,20 +220,21 @@ function extrairDados(msg){
 				msg: msg,
 				quotedMsg: await msg.getQuotedMessage(),
 				chat: await msg.getChat(),
-				nomeGrupo: getGroupNameByNumeroGrupo(),
+				nomeGrupo: getGroupNameByNumeroGrupo(msg.from),
+				nomeAutor: msg._data.notifyName ?? "pessoa",
 				numeroAutor: msg.author ?? "55????????@c.us",
 				contatoAutor: await msg.getContact(),
 				mentions: await msg.getMentions() ?? [],
-				cleanMessageText: msg.body.toLowerCase().trim() ?? ""
+				cleanMessageText: msg.body.toLowerCase().trim().replace("! ", "!") ?? ""
 			}
 
 			// Dados que dependem de promises/async
-			dados.admin = isUserAdmin(dados.numeroAutor,dados.chat);
+			dados.admin = isUserAdminInChat(dados.contatoAutor, dados.chat);
 			dados.superAdmin = isSuperAdmin(dados.numeroAutor);
 
 			// Adiciona quem está em resposta na lista de mencionados
 			if(dados.quotedMsg){
-				dados.mentions.push(await dados.quotedMsg.getContact());
+				dados.mentions.unshift(await dados.quotedMsg.getContact());
 			}
 
 			resolve(dados);
@@ -205,7 +257,7 @@ function messageHandler(msg){
 	extrairDados(msg)
 	.then(ignorarMsg)
 	.then(dados => {
-		//loggerInfo(`[messageHandler] Dados Extraídos:`, dados);
+		//loggerInfo(`[messageHandler] Dados Extraídos:\n${JSON.stringify(dados,null,"\t")}`);
 
 		//////////////////////////////////////////////////////
 		// Handlers de Comandos
@@ -215,6 +267,7 @@ function messageHandler(msg){
 				const vereditoAdm = ((h.adminOnly ? dados.admin : true)); // Apenas para admin?
 				const vereditoSuperAdm = ((h.superAdminOnly ? dados.superAdmin : true)); // Apenas para Super admin?
 				const vereditoMedia = ((h.needsMedia ? msg.hasMedia : true)); // Comando só pode ser executado em mensagens que contém mídia nela mesma?
+				const vereditoQuote = ((h.needsQuote ? msg.hasQuotedMsg : true)); // Comando só pode ser executado em mensagens que contém um quote (msg em resposta)
 				
 				const comandosPossiveis = gerarPossiveisComandos(h);
 				let vereditoStrings = false;
@@ -235,14 +288,15 @@ function messageHandler(msg){
 					}
 				}
 
-				const vereditoFinal = vereditoAdm && vereditoSuperAdm && vereditoMedia && vereditoStrings;
+				const vereditoFinal = vereditoAdm && vereditoSuperAdm && vereditoMedia && vereditoQuote && vereditoStrings;
 
 				return vereditoFinal;
 			}
 		)[0]?.handler ?? handlerComandosNormais; // Se nenhum Handler pré-definido foi encontrado, joga pro comandos normais
 
-		//loggerInfo(`[messageHandler] Handler? ${handler}`);
 		handler(dados).then(retorno => {
+			//loggerInfo(`[messageHandler] retorno:\n${JSON.stringify(retorno,null,"\t")}`);
+
 			dispatchMessages(dados, retorno);
 		});
 	});

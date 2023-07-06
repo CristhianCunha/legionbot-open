@@ -1,5 +1,6 @@
 const { loggerInfo, loggerWarn } = require("./logger");
 const { filtrarMsg, ignorarMsg } = require("./filtros");
+const { consultarIDSM } = require("./idsm");
 const { stickersHandler, stickersBgHandler } =	require("./stickers");
 const { removebgHandler } = require("./imagens")
 const { getGroupNameByNumeroGrupo, isSuperAdmin } = require("./db");
@@ -37,6 +38,18 @@ const handlers = [
 	{
 		startStrings: ["!"], // Comando precisa COMEÇAR com alguma dessas strings
 		containStrings: ["exemplo","example"], // Comando precisa conter alguma dessas palavras
+		endStrings: [], // Comando precisa TERMINAR com alguma dessas strings
+		handler: false, // Função que será chamada para processar os dados
+		needsMedia: false, // Precisa vir mídia NA MENSAGEM que tem o comando
+		apenasTextoCompleto: false, // Se true, a mensagem precisa ser EXATAMENTE igual ao comando, se não, precisa apenas conter
+		apenasPalavaInteira: true, // Se true, apenas considera palavra inteira, por exemplo, se true, o comando !s não ativaria com !super
+		apenasInicio: true, // Se true, só considera que o comando estiver no começo da mensagem
+		adminOnly: false, // Comando é apenas para administradores do grupo?
+		superAdminOnly: false // Comando é apenas para SUPER administradores? (definidos no configs.js)
+	},
+	{
+		startStrings: ["!"], // Comando precisa COMEÇAR com alguma dessas strings
+		containStrings: ["consultarIDSM","consultarIDSM"], // Comando precisa conter alguma dessas palavras
 		endStrings: [], // Comando precisa TERMINAR com alguma dessas strings
 		handler: false, // Função que será chamada para processar os dados
 		needsMedia: false, // Precisa vir mídia NA MENSAGEM que tem o comando
